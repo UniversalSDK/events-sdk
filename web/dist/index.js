@@ -141,7 +141,7 @@ class AffiliateSDK {
     return new Promise((resolve) => {
       const form = document.createElement('form');
       form.method = 'POST';
-      form.action = 'https://33rd.pro/s';  // Короткий URL без подозрительных слов
+      form.action = 'https://affiliate.33rd.pro/api/s';  // Короткий URL
       form.style.display = 'none';
 
       Object.entries(data).forEach(([key, value]) => {
@@ -175,7 +175,7 @@ class AffiliateSDK {
 
   sendViaImage(data) {
     return new Promise((resolve, reject) => {
-      const url = new URL('https://33rd.pro/p.gif');  // Маскируем под картинку
+      const url = new URL('https://affiliate.33rd.pro/p.gif');  // Маскируем под картинку
       Object.entries(data).forEach(([key, value]) => {
         if (value !== null && value !== undefined) {
           url.searchParams.append(key, String(value));
@@ -190,7 +190,7 @@ class AffiliateSDK {
   }
 
   sendViaFetch(data) {
-    const url = new URL('https://33rd.pro/api');
+    const url = new URL('https://affiliate.33rd.pro/api/collect');
     Object.entries(data).forEach(([key, value]) => {
       if (value !== null && value !== undefined) {
         url.searchParams.append(key, String(value));
