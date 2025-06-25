@@ -1,0 +1,33 @@
+{
+  "name": "events-sdk",
+  "version": "1.0.0",
+  "description": "Universal SDK for event tracking and analytics across all platforms",
+  "main": "web/dist/index.js",
+  "module": "web/dist/index.esm.js",
+  "types": "web/dist/index.d.ts",
+  "files": [
+    "web/dist",
+    "web/README.md",
+    "react-native",
+    "flutter", 
+    "ios-swift",
+    "android-kotlin"
+  ],
+  "keywords": [
+    "events",
+    "tracking", 
+    "analytics",
+    "sdk",
+    "cross-platform"
+  ],
+  "author": "UniversalSDK",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/UniversalSDK/events-sdk.git"
+  },
+  "homepage": "https://github.com/UniversalSDK/events-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/UniversalSDK/events-sdk/issues"
+  }
+}
