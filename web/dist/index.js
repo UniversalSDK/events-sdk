@@ -3,11 +3,25 @@
  */
 class AffiliateSDK {
   constructor(config) {
+    // Auto-detect base URL if not provided
+    const baseHost = typeof window !== 'undefined' ? window.location.origin : 'https://affiliate.33rd.pro';
+    
     this.config = {
       baseUrl: config.baseUrl || 'https://affiliate.33rd.pro/api/tracker.php',
+      pixelSettingsUrl: `${baseHost}/api/pixel-settings.php`,
       debug: config.debug || false,
-      ...config
+      enablePixels: config.enablePixels || false,
+      autoTrack: {
+        pageViews: true,
+        clicks: true,
+        forms: true,
+        scrolling: true,
+        timeOnPage: true,
+      },
+      ...config,
     };
+    
+    this.storagePrefix = `affiliate_sdk_${this.config.affiliateCode}`;
     this.sessionId = null;
     this.isInitialized = false;
   }
