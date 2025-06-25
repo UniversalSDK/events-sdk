@@ -6,8 +6,8 @@
 
 | Платформа | Папка | Установка | Статус |
 |-----------|-------|-----------|---------|
-| **Web/React** | `/web` | `npm install github:Sattva12345/events-sdk#main` | ✅ Готов |
-| **React Native** | `/react-native` | `npm install github:Sattva12345/events-sdk#main-react-native` | ✅ Готов |
+| **Web/React** | `/web` | `npm install github:UniversalSDK/events-sdk#main` | ✅ Готов |
+| **React Native** | `/react-native` | `npm install github:UniversalSDK/events-sdk#main-react-native` | ✅ Готов |
 | **Flutter** | `/flutter` | См. инструкцию в папке | ✅ Готов |
 | **iOS (Swift)** | `/ios-swift` | Swift Package Manager | ✅ Готов |
 | **Android (Kotlin)** | `/android-kotlin` | Gradle | ✅ Готов |
@@ -24,11 +24,11 @@
 
 ### Web/React
 ```bash
-npm install github:Sattva12345/events-sdk#main
+npm install github:UniversalSDK/events-sdk#main
 ```
 
 ```javascript
-import { AffiliateSDK } from 'github:Sattva12345/events-sdk#main';
+import { AffiliateSDK } from 'github:UniversalSDK/events-sdk#main';
 
 const tracker = new AffiliateSDK({
   affiliateCode: 'YOUR_AFFILIATE_CODE',
@@ -40,7 +40,7 @@ await tracker.initialize();
 
 ### React Native
 ```bash
-npm install github:Sattva12345/events-sdk#main -- --save-prefix="~" -- react-native
+npm install github:UniversalSDK/events-sdk#main -- --save-prefix="~" -- react-native
 ```
 
 ### Flutter
@@ -48,7 +48,7 @@ npm install github:Sattva12345/events-sdk#main -- --save-prefix="~" -- react-nat
 dependencies:
   affiliate_sdk:
     git:
-      url: https://github.com/Sattva12345/events-sdk.git
+      url: https://github.com/UniversalSDK/events-sdk.git
       path: flutter
 ```
 
