@@ -3,25 +3,11 @@
  */
 class AffiliateSDK {
   constructor(config) {
-    // Auto-detect base URL if not provided
-    const baseHost = typeof window !== 'undefined' ? window.location.origin : 'https://affiliate.33rd.pro';
-    
     this.config = {
       baseUrl: config.baseUrl || 'https://affiliate.33rd.pro/api/tracker.php',
-      pixelSettingsUrl: `${baseHost}/api/pixel-settings.php`,
       debug: config.debug || false,
-      enablePixels: config.enablePixels || false,
-      autoTrack: {
-        pageViews: true,
-        clicks: true,
-        forms: true,
-        scrolling: true,
-        timeOnPage: true,
-      },
-      ...config,
+      ...config
     };
-    
-    this.storagePrefix = `affiliate_sdk_${this.config.affiliateCode}`;
     this.sessionId = null;
     this.isInitialized = false;
   }
@@ -111,163 +97,25 @@ class AffiliateSDK {
 
   async sendEvent(eventData) {
     try {
-      // Сначала пробуем GitHub iframe
-      try {
-        await this.sendViaGitHubIframe(eventData);
-        this.log('✅ Event sent via GitHub iframe:', eventData.event);
-        return;
-      } catch (e) {
-        this.log('GitHub iframe failed, trying fallback:', e.message);
-      }
-
-      // Fallback - прямая отправка (для инкогнито и пользователей без блокировщиков)
       const url = new URL(this.config.baseUrl);
+      
+      // Add all event data as query parameters
       Object.entries(eventData).forEach(([key, value]) => {
         if (value !== null && value !== undefined) {
           url.searchParams.append(key, String(value));
         }
       });
 
+      // Use image pixel for reliable cross-origin tracking
       const img = new Image();
       img.src = url.toString();
-      this.log('✅ Event sent via fallback image:', eventData.event);
+      
+      this.log('Event sent successfully:', eventData.event);
 
     } catch (error) {
-      this.logError('❌ All methods failed:', error);
+      this.logError('Failed to send event:', error);
+      throw error;
     }
-  }
-
-  sendViaGitHubIframe(eventData) {
-    return new Promise((resolve, reject) => {
-      // Создаем параметры для iframe
-      const params = new URLSearchParams({
-        uid: eventData.affiliate_code,
-        action: eventData.event,
-        page: eventData.url || window.location.href,
-        ref: eventData.referrer || document.referrer,
-        sid: eventData.session_id,
-        ts: eventData.timestamp,
-        ua: eventData.user_agent || navigator.userAgent
-      });
-
-      // Создаем iframe с GitHub Pages
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.style.width = '1px';
-      iframe.style.height = '1px';
-      iframe.src = `https://universalsdk.github.io/events-sdk/bypass/simple-tracker.html?${params.toString()}`;
-      
-      let resolved = false;
-      
-      // Слушаем сообщения от iframe
-      const messageHandler = (event) => {
-        if (event.data && event.data.type === 'simple_tracking_sent') {
-          if (!resolved) {
-            resolved = true;
-            resolve();
-            window.removeEventListener('message', messageHandler);
-            this.log('✅ Simple tracking completed');
-          }
-        }
-      };
-      
-      window.addEventListener('message', messageHandler);
-      
-      iframe.onload = () => {
-        this.log('GitHub iframe loaded');
-        // Если через 3 секунды нет ответа, считаем что не сработало
-        setTimeout(() => {
-          if (!resolved) {
-            resolved = true;
-            reject(new Error('GitHub iframe timeout'));
-            window.removeEventListener('message', messageHandler);
-          }
-        }, 3000);
-      };
-      
-      iframe.onerror = () => {
-        if (!resolved) {
-          resolved = true;
-          reject(new Error('GitHub iframe load error'));
-          window.removeEventListener('message', messageHandler);
-        }
-      };
-      
-      document.body.appendChild(iframe);
-      
-      // Убираем iframe через 5 секунд
-      setTimeout(() => {
-        try {
-          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-        } catch(e) {}
-      }, 5000);
-    });
-  }
-
-  sendViaForm(data) {
-    return new Promise((resolve) => {
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = 'https://affiliate.33rd.pro/api/s';  // Короткий URL
-      form.style.display = 'none';
-
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-          const input = document.createElement('input');
-          input.name = key;
-          input.value = String(value);
-          form.appendChild(input);
-        }
-      });
-
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.name = 'target_' + Date.now();
-      form.target = iframe.name;
-      
-      iframe.onload = () => resolve();
-      
-      document.body.appendChild(iframe);
-      document.body.appendChild(form);
-      form.submit();
-
-      setTimeout(() => {
-        try {
-          if (form.parentNode) form.parentNode.removeChild(form);
-          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-        } catch(e) {}
-      }, 2000);
-    });
-  }
-
-  sendViaImage(data) {
-    return new Promise((resolve, reject) => {
-      const url = new URL('https://affiliate.33rd.pro/p.gif');  // Маскируем под картинку
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-          url.searchParams.append(key, String(value));
-        }
-      });
-
-      const img = new Image();
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Image load failed'));
-      img.src = url.toString();
-    });
-  }
-
-  sendViaFetch(data) {
-    const url = new URL('https://affiliate.33rd.pro/api/collect');
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== null && value !== undefined) {
-        url.searchParams.append(key, String(value));
-      }
-    });
-
-    return fetch(url.toString(), {
-      method: 'GET',
-      mode: 'no-cors'
-    });
   }
 
   generateSessionId() {
