@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Tracker</title>
+</head>
+<body>
+<script>
+// Простой трекер без тестов - сразу отправляем данные
+(function() {
+    console.log('🚀 Simple tracker iframe loaded');
+    
+    // Получаем параметры из URL
+    const params = new URLSearchParams(window.location.search);
+    const trackingData = {
+        affiliate_code: params.get('affiliate_code'),
+        event: params.get('event') || 'page_view',
+        url: params.get('url'),
+        referrer: params.get('referrer'),
+        session_id: params.get('session_id'),
+        timestamp: params.get('timestamp') || Date.now(),
+        user_agent: params.get('user_agent') || navigator.userAgent
+    };
+    
+    console.log('📊 Tracking data:', trackingData);
+    
+    if (!trackingData.affiliate_code) {
+        console.log('❌ No affiliate code provided');
+        return;
+    }
+    
+    // Пробуем разные методы отправки
+    let success = false;
+    
+    // Метод 1: POST форма
+    function sendViaForm() {
+        console.log('📝 Trying POST form...');
+        
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'https://affiliate.33rd.pro/api/tracker.php';
+        form.style.display = 'none';
+        
+        Object.entries(trackingData).forEach(([key, value]) => {
+            if (value) {
+                const input = document.createElement('input');
+                input.name = key;
+                input.value = String(value);
+                form.appendChild(input);
+            }
+        });
+        
+        document.body.appendChild(form);
+        form.submit();
+        console.log('✅ POST form submitted');
+        
+        setTimeout(() => {
+            if (form.parentNode) form.parentNode.removeChild(form);
+        }, 2000);
+    }
+    
+    // Метод 2: Image pixel
+    function sendViaImage() {
+        console.log('🖼️ Trying image pixel...');
+        
+        const url = new URL('https://affiliate.33rd.pro/api/tracker.php');
+        Object.entries(trackingData).forEach(([key, value]) => {
+            if (value) url.searchParams.append(key, String(value));
+        });
+        
+        const img = new Image();
+        img.onload = () => console.log('✅ Image pixel loaded successfully');
+        img.onerror = () => console.log('❌ Image pixel failed');
+        img.src = url.toString();
+    }
+    
+    // Метод 3: Fetch
+    function sendViaFetch() {
+        console.log('🌐 Trying fetch...');
+        
+        const url = new URL('https://affiliate.33rd.pro/api/tracker.php');
+        Object.entries(trackingData).forEach(([key, value]) => {
+            if (value) url.searchParams.append(key, String(value));
+        });
+        
+        fetch(url.toString(), {
+            method: 'GET',
+            mode: 'no-cors'
+        }).then(() => {
+            console.log('✅ Fetch request sent');
+        }).catch(e => {
+            console.log('❌ Fetch failed:', e.message);
+        });
+    }
+    
+    // Отправляем всеми методами сразу
+    sendViaForm();
+    
+    setTimeout(() => {
+        sendViaImage();
+    }, 500);
+    
+    setTimeout(() => {
+        sendViaFetch();
+    }, 1000);
+    
+    // Уведомляем родительское окно
+    setTimeout(() => {
+        if (window.parent) {
+            window.parent.postMessage({
+                type: 'simple_tracking_sent',
+                data: trackingData
+            }, '*');
+        }
+        console.log('📡 Notified parent window');
+    }, 1500);
+    
+})();
+</script>
+</body>
+</html>
