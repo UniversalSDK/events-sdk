@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>SW Handler</title>
+</head>
+<body>
+<script>
+// Service Worker обходчик
+(function() {
+    console.log('SW Handler loaded');
+    
+    // Получаем данные из URL
+    const params = new URLSearchParams(window.location.search);
+    const trackingData = {
+        affiliate_code: params.get('affiliate_code'),
+        event: params.get('event') || 'page_view',
+        url: params.get('url'),
+        referrer: params.get('referrer'),
+        session_id: params.get('session_id'),
+        timestamp: params.get('timestamp') || Date.now(),
+        user_agent: params.get('user_agent') || navigator.userAgent
+    };
+    
+    console.log('SW Handler data:', trackingData);
+    
+    if (!trackingData.affiliate_code) {
+        console.log('No affiliate code provided');
+        return;
+    }
+    
+    // Регистрируем Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./service-worker.js', {
+            scope: './'
+        }).then(function(registration) {
+            console.log('SW registered successfully');
+            
+            // Ждем пока SW активируется
+            const worker = registration.active || registration.waiting || registration.installing;
+            
+            if (worker) {
+                if (worker.state === 'activated') {
+                    sendToWorker(worker);
+                } else {
+                    worker.addEventListener('statechange', function() {
+                        if (worker.state === 'activated') {
+                            sendToWorker(worker);
+                        }
+                    });
+                }
+            }
+            
+        }).catch(function(error) {
+            console.log('SW registration failed:', error);
+            fallbackMethod();
+        });
+    } else {
+        console.log('SW not supported');
+        fallbackMethod();
+    }
+    
+    function sendToWorker(worker) {
+        // Отправляем данные в Service Worker
+        worker.postMessage({
+            type: 'track',
+            payload: trackingData
+        });
+        
+        console.log('Data sent to SW');
+        
+        // Уведомляем родительское окно
+        if (window.parent) {
+            window.parent.postMessage({
+                type: 'sw_tracking_sent',
+                data: trackingData
+            }, '*');
+        }
+    }
+    
+    function fallbackMethod() {
+        console.log('Using fallback method');
+        
+        // Fallback - обычная отправка
+        try {
+            const url = new URL('https://affiliate.33rd.pro/api/tracker.php');
+            Object.entries(trackingData).forEach(([key, value]) => {
+                if (value) url.searchParams.append(key, String(value));
+            });
+            
+            const img = new Image();
+            img.onload = () => console.log('Fallback image loaded');
+            img.onerror = () => console.log('Fallback image failed');
+            img.src = url.toString();
+            
+            // Уведомляем родительское окно
+            if (window.parent) {
+                window.parent.postMessage({
+                    type: 'fallback_tracking_sent', 
+                    data: trackingData
+                }, '*');
+            }
+            
+        } catch (e) {
+            console.log('Fallback failed:', e);
+        }
+    }
+    
+})();
+</script>
+</body>
+</html>
