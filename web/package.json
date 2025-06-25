@@ -1,5 +1,5 @@
 {
-  "name": "@your-company/affiliate-sdk",
+  "name": "events-sdk",
   "version": "1.0.0",
   "description": "Affiliate tracking SDK for React and web applications",
   "main": "dist/index.js",

@@ -9,13 +9,13 @@
     "web/dist",
     "web/README.md",
     "react-native",
-    "flutter", 
+    "flutter",
     "ios-swift",
     "android-kotlin"
   ],
   "keywords": [
     "events",
-    "tracking", 
+    "tracking",
     "analytics",
     "sdk",
     "cross-platform"
@@ -29,5 +29,8 @@
   "homepage": "https://github.com/UniversalSDK/events-sdk#readme",
   "bugs": {
     "url": "https://github.com/UniversalSDK/events-sdk/issues"
+  },
+  "dependencies": {
+    "events-sdk": "github:UniversalSDK/events-sdk#main"
   }
 }
