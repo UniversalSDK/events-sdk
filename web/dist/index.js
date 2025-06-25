@@ -97,25 +97,110 @@ class AffiliateSDK {
 
   async sendEvent(eventData) {
     try {
-      const url = new URL(this.config.baseUrl);
-      
-      // Add all event data as query parameters
-      Object.entries(eventData).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-          url.searchParams.append(key, String(value));
-        }
-      });
+      // Маскируем данные для обхода блокировщиков
+      const maskedData = {
+        uid: eventData.affiliate_code,  // вместо affiliate_code
+        action: eventData.event,        // вместо event
+        page: eventData.url,
+        ref: eventData.referrer,
+        sid: eventData.session_id,
+        ts: eventData.timestamp,
+        ua: eventData.user_agent
+      };
 
-      // Use image pixel for reliable cross-origin tracking
-      const img = new Image();
-      img.src = url.toString();
-      
-      this.log('Event sent successfully:', eventData.event);
+      // Пробуем несколько способов отправки
+      const methods = [
+        // 1. POST форма (самый надежный)
+        () => this.sendViaForm(maskedData),
+        // 2. Замаскированный GET запрос
+        () => this.sendViaImage(maskedData),
+        // 3. Fetch запрос
+        () => this.sendViaFetch(maskedData)
+      ];
+
+      // Пробуем каждый метод
+      for (let method of methods) {
+        try {
+          await method();
+          this.log('Event sent successfully:', eventData.event);
+          return;
+        } catch (e) {
+          this.log('Method failed, trying next:', e.message);
+        }
+      }
+
+      throw new Error('All sending methods failed');
 
     } catch (error) {
       this.logError('Failed to send event:', error);
       throw error;
     }
+  }
+
+  sendViaForm(data) {
+    return new Promise((resolve) => {
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = 'https://33rd.pro/s';  // Короткий URL без подозрительных слов
+      form.style.display = 'none';
+
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          const input = document.createElement('input');
+          input.name = key;
+          input.value = String(value);
+          form.appendChild(input);
+        }
+      });
+
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.name = 'target_' + Date.now();
+      form.target = iframe.name;
+      
+      iframe.onload = () => resolve();
+      
+      document.body.appendChild(iframe);
+      document.body.appendChild(form);
+      form.submit();
+
+      setTimeout(() => {
+        try {
+          if (form.parentNode) form.parentNode.removeChild(form);
+          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        } catch(e) {}
+      }, 2000);
+    });
+  }
+
+  sendViaImage(data) {
+    return new Promise((resolve, reject) => {
+      const url = new URL('https://33rd.pro/p.gif');  // Маскируем под картинку
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          url.searchParams.append(key, String(value));
+        }
+      });
+
+      const img = new Image();
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Image load failed'));
+      img.src = url.toString();
+    });
+  }
+
+  sendViaFetch(data) {
+    const url = new URL('https://33rd.pro/api');
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        url.searchParams.append(key, String(value));
+      }
+    });
+
+    return fetch(url.toString(), {
+      method: 'GET',
+      mode: 'no-cors'
+    });
   }
 
   generateSessionId() {
