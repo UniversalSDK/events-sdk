@@ -97,13 +97,29 @@ class AffiliateSDK {
 
   async sendEvent(eventData) {
     try {
-      // ТОЛЬКО GitHub iframe - никаких fallback методов!
-      console.log('🔄 Sending via GitHub iframe ONLY');
-      await this.sendViaGitHubIframe(eventData);
-      this.log('✅ Event sent via GitHub iframe:', eventData.event);
+      // Сначала пробуем GitHub iframe
+      try {
+        await this.sendViaGitHubIframe(eventData);
+        this.log('✅ Event sent via GitHub iframe:', eventData.event);
+        return;
+      } catch (e) {
+        this.log('GitHub iframe failed, trying fallback:', e.message);
+      }
+
+      // Fallback - прямая отправка (для инкогнито и пользователей без блокировщиков)
+      const url = new URL(this.config.baseUrl);
+      Object.entries(eventData).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          url.searchParams.append(key, String(value));
+        }
+      });
+
+      const img = new Image();
+      img.src = url.toString();
+      this.log('✅ Event sent via fallback image:', eventData.event);
+
     } catch (error) {
-      this.logError('❌ GitHub iframe failed completely:', error);
-      console.log('❌ NO FALLBACK - iframe method failed');
+      this.logError('❌ All methods failed:', error);
     }
   }
 
