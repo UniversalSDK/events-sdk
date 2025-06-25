@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Tracker</title>
+</head>
+<body>
+<script>
+// Обходчик блокировщиков через GitHub Pages
+(function() {
+    // Получаем параметры из URL iframe
+    const params = new URLSearchParams(window.location.search);
+    
+    // Формируем данные для отправки
+    const trackingData = {
+        affiliate_code: params.get('uid') || params.get('affiliate_code'),
+        event: params.get('action') || params.get('event') || 'page_view',
+        url: params.get('page') || params.get('url'),
+        referrer: params.get('ref') || params.get('referrer'),
+        session_id: params.get('sid') || params.get('session_id'),
+        timestamp: params.get('ts') || params.get('timestamp') || Date.now(),
+        user_agent: params.get('ua') || navigator.userAgent
+    };
+    
+    console.log('GitHub iframe tracker loaded with data:', trackingData);
+    
+    // Проверяем что есть код для отслеживания
+    if (!trackingData.affiliate_code) {
+        console.log('No tracking code provided');
+        return;
+    }
+    
+    // Отправляем данные через разные методы
+    function sendTracking() {
+        // Метод 1: POST форма
+        try {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'https://affiliate.33rd.pro/api/tracker.php';
+            form.style.display = 'none';
+            
+            Object.entries(trackingData).forEach(([key, value]) => {
+                if (value) {
+                    const input = document.createElement('input');
+                    input.name = key;
+                    input.value = String(value);
+                    form.appendChild(input);
+                }
+            });
+            
+            document.body.appendChild(form);
+            form.submit();
+            console.log('POST form submitted');
+            
+            // Убираем форму
+            setTimeout(() => {
+                if (form.parentNode) form.parentNode.removeChild(form);
+            }, 1000);
+            
+        } catch(e) {
+            console.log('POST form failed:', e);
+        }
+        
+        // Метод 2: Image pixel
+        setTimeout(() => {
+            try {
+                const url = new URL('https://affiliate.33rd.pro/api/tracker.php');
+                Object.entries(trackingData).forEach(([key, value]) => {
+                    if (value) url.searchParams.append(key, String(value));
+                });
+                
+                const img = new Image();
+                img.onload = () => console.log('Image pixel loaded successfully');
+                img.onerror = () => console.log('Image pixel failed');
+                img.src = url.toString();
+                
+            } catch(e) {
+                console.log('Image pixel failed:', e);
+            }
+        }, 500);
+        
+        // Метод 3: Fetch
+        setTimeout(() => {
+            try {
+                const url = new URL('https://affiliate.33rd.pro/api/tracker.php');
+                Object.entries(trackingData).forEach(([key, value]) => {
+                    if (value) url.searchParams.append(key, String(value));
+                });
+                
+                fetch(url.toString(), {
+                    method: 'GET',
+                    mode: 'no-cors'
+                }).then(() => {
+                    console.log('Fetch request sent');
+                }).catch(e => {
+                    console.log('Fetch failed:', e);
+                });
+                
+            } catch(e) {
+                console.log('Fetch failed:', e);
+            }
+        }, 1000);
+    }
+    
+    // Запускаем отправку
+    sendTracking();
+    
+    // Отправляем подтверждение родительскому окну
+    if (window.parent) {
+        window.parent.postMessage({
+            type: 'tracking_sent',
+            data: trackingData
+        }, '*');
+    }
+    
+})();
+</script>
+</body>
+</html>

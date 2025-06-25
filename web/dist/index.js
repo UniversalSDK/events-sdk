@@ -97,10 +97,19 @@ class AffiliateSDK {
 
   async sendEvent(eventData) {
     try {
-      // Маскируем данные для обхода блокировщиков
+      // Пробуем GitHub iframe обходчик (приоритетный метод)
+      try {
+        await this.sendViaGitHubIframe(eventData);
+        this.log('Event sent via GitHub iframe:', eventData.event);
+        return;
+      } catch (e) {
+        this.log('GitHub iframe failed, trying fallback methods:', e.message);
+      }
+
+      // Fallback методы
       const maskedData = {
-        uid: eventData.affiliate_code,  // вместо affiliate_code
-        action: eventData.event,        // вместо event
+        uid: eventData.affiliate_code,
+        action: eventData.event,
         page: eventData.url,
         ref: eventData.referrer,
         sid: eventData.session_id,
@@ -108,17 +117,12 @@ class AffiliateSDK {
         ua: eventData.user_agent
       };
 
-      // Пробуем несколько способов отправки
       const methods = [
-        // 1. POST форма (самый надежный)
         () => this.sendViaForm(maskedData),
-        // 2. Замаскированный GET запрос
         () => this.sendViaImage(maskedData),
-        // 3. Fetch запрос
         () => this.sendViaFetch(maskedData)
       ];
 
-      // Пробуем каждый метод
       for (let method of methods) {
         try {
           await method();
@@ -135,6 +139,72 @@ class AffiliateSDK {
       this.logError('Failed to send event:', error);
       throw error;
     }
+  }
+
+  sendViaGitHubIframe(eventData) {
+    return new Promise((resolve, reject) => {
+      // Создаем параметры для iframe
+      const params = new URLSearchParams({
+        uid: eventData.affiliate_code,
+        action: eventData.event,
+        page: eventData.url || window.location.href,
+        ref: eventData.referrer || document.referrer,
+        sid: eventData.session_id,
+        ts: eventData.timestamp,
+        ua: eventData.user_agent || navigator.userAgent
+      });
+
+      // Создаем iframe с GitHub Pages
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.style.width = '1px';
+      iframe.style.height = '1px';
+      iframe.src = `https://universalsdk.github.io/events-sdk/tracker-bypass.html?${params.toString()}`;
+      
+      let resolved = false;
+      
+      // Слушаем сообщения от iframe
+      const messageHandler = (event) => {
+        if (event.data && event.data.type === 'tracking_sent') {
+          if (!resolved) {
+            resolved = true;
+            resolve();
+            window.removeEventListener('message', messageHandler);
+          }
+        }
+      };
+      
+      window.addEventListener('message', messageHandler);
+      
+      iframe.onload = () => {
+        this.log('GitHub iframe loaded');
+        // Если через 3 секунды нет ответа, считаем что не сработало
+        setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            reject(new Error('GitHub iframe timeout'));
+            window.removeEventListener('message', messageHandler);
+          }
+        }, 3000);
+      };
+      
+      iframe.onerror = () => {
+        if (!resolved) {
+          resolved = true;
+          reject(new Error('GitHub iframe load error'));
+          window.removeEventListener('message', messageHandler);
+        }
+      };
+      
+      document.body.appendChild(iframe);
+      
+      // Убираем iframe через 5 секунд
+      setTimeout(() => {
+        try {
+          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        } catch(e) {}
+      }, 5000);
+    });
   }
 
   sendViaForm(data) {
