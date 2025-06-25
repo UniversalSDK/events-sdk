@@ -93,16 +93,21 @@
         });
     }
     
-    // Отправляем всеми методами сразу
-    sendViaForm();
+    // Сначала тестируем внешний домен
+    console.log('🧪 Testing external domain first...');
     
-    setTimeout(() => {
-        sendViaImage();
-    }, 500);
-    
-    setTimeout(() => {
-        sendViaFetch();
-    }, 1000);
+    const testImg = new Image();
+    testImg.onload = () => {
+        console.log('✅ External domain works - trying our tracker');
+        // Если внешний домен работает, пробуем наш трекер
+        sendViaForm();
+        setTimeout(() => sendViaImage(), 500);
+        setTimeout(() => sendViaFetch(), 1000);
+    };
+    testImg.onerror = () => {
+        console.log('❌ External domains blocked - iframe blocked too');
+    };
+    testImg.src = 'https://httpbin.org/status/200?t=' + Date.now();
     
     // Уведомляем родительское окно
     setTimeout(() => {
