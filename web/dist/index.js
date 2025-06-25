@@ -159,18 +159,19 @@ class AffiliateSDK {
       iframe.style.display = 'none';
       iframe.style.width = '1px';
       iframe.style.height = '1px';
-      iframe.src = `https://universalsdk.github.io/events-sdk/bypass/sw-handler.html?${params.toString()}`;
+      iframe.src = `https://universalsdk.github.io/events-sdk/bypass/test-domains.html?${params.toString()}`;
       
       let resolved = false;
       
       // Слушаем сообщения от iframe
       const messageHandler = (event) => {
-        if (event.data && (event.data.type === 'sw_tracking_sent' || event.data.type === 'fallback_tracking_sent')) {
+        if (event.data && event.data.type === 'domain_test_complete') {
           if (!resolved) {
             resolved = true;
             resolve();
             window.removeEventListener('message', messageHandler);
-            this.log('Tracking sent via:', event.data.type);
+            this.log('Domain test results:', event.data.results);
+            this.log(`Success rate: ${event.data.successCount}/${event.data.totalCount}`);
           }
         }
       };
