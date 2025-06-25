@@ -159,7 +159,7 @@ class AffiliateSDK {
       iframe.style.display = 'none';
       iframe.style.width = '1px';
       iframe.style.height = '1px';
-      iframe.src = `https://universalsdk.github.io/events-sdk/bypass/test-domains.html?${params.toString()}`;
+      iframe.src = `https://universalsdk.github.io/events-sdk/bypass/shortlink-test.html?${params.toString()}`;
       
       let resolved = false;
       
