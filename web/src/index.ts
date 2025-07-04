@@ -350,7 +350,7 @@ export class AffiliateSDK {
 
       const response = await fetch(url.toString(), {
         method: 'GET',
-        mode: 'no-cors' // Allow cross-origin requests
+        mode: 'cors' // Allow cross-origin requests
       });
 
       this.log('Event sent successfully:', eventData.event_type);
