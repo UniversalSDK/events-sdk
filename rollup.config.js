@@ -10,7 +10,7 @@ module.exports = [
     output: {
       file: 'dist/index.esm.js',
       format: 'es',
-      sourcemap: true
+      sourcemap: false
     },
     external: ['react', 'react-router-dom'],
     plugins: [
@@ -36,7 +36,7 @@ module.exports = [
     output: {
       file: 'dist/index.js',
       format: 'cjs',
-      sourcemap: true,
+      sourcemap: false,
       exports: 'named'
     },
     external: ['react', 'react-router-dom'],
