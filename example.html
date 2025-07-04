@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Affiliate SDK Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .form input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .product-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 10px 0;
+            background: white;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Affiliate SDK Example</h1>
+        <p>This example demonstrates the Affiliate SDK with automatic pixel integration (Facebook, TikTok, Google Ads).</p>
+        
+        <div id="status" class="status" style="display: none;"></div>
+        
+        <div class="form">
+            <h3>🔧 SDK Configuration</h3>
+            <input type="text" id="affiliateCode" placeholder="Enter your affiliate code" value="EVT_12345">
+            <input type="text" id="appCode" placeholder="Enter your app code" value="WEB_APP_001">
+            <button class="button" onclick="initializeSDK()">Initialize SDK</button>
+        </div>
+
+        <div id="actions" style="display: none;">
+            <h3>📊 Test Events</h3>
+            
+            <button class="button" onclick="trackPageView()">Track Page View</button>
+            <button class="button" onclick="trackCustomEvent()">Track Custom Event</button>
+            <button class="button" onclick="trackButtonClick()">Track Button Click</button>
+            
+            <div class="product-card">
+                <h4>🛒 Product Demo - Premium Widget</h4>
+                <p><strong>Price:</strong> $99.99</p>
+                <p><strong>Product ID:</strong> premium_widget_001</p>
+                <button class="button" onclick="trackProductView()">View Product</button>
+                <button class="button" onclick="trackAddToCart()">Add to Cart</button>
+                <button class="button" onclick="trackPurchase()">Purchase</button>
+            </div>
+            
+            <div class="form">
+                <h4>📝 Lead Form</h4>
+                <form onsubmit="submitTestForm(event)">
+                    <input type="email" placeholder="Email" required>
+                    <input type="text" placeholder="Name" required>
+                    <button type="submit" class="button">Submit Form</button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="log" id="log">SDK not initialized yet...</div>
+    </div>
+
+    <script type="module">
+        // Import our SDK (in real usage, you'd import from npm)
+        import AffiliateSDK from './src/index.js';
+        
+        let sdk = null;
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+        const actions = document.getElementById('actions');
+        
+        function logMessage(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            log.textContent += `[${timestamp}] ${message}\n`;
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        function showStatus(message, type = 'success') {
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+        
+        window.initializeSDK = async function() {
+            const affiliateCode = document.getElementById('affiliateCode').value;
+            const appCode = document.getElementById('appCode').value;
+            
+            if (!affiliateCode || !appCode) {
+                showStatus('Please enter both affiliate code and app code', 'error');
+                return;
+            }
+            
+            try {
+                log.textContent = '';
+                logMessage('Initializing Affiliate SDK...');
+                
+                sdk = new AffiliateSDK({
+                    affiliateCode: affiliateCode,
+                    appCode: appCode,
+                    debug: true,
+                    enablePixels: true,
+                    autoTrack: {
+                        pageViews: true,
+                        clicks: true,
+                        forms: true,
+                        scrolling: true,
+                        timeOnPage: true
+                    }
+                });
+                
+                await sdk.initialize();
+                
+                logMessage('✅ SDK initialized successfully!');
+                logMessage('📡 Pixel settings loaded and initialized');
+                logMessage('🔄 Auto-tracking enabled for clicks, forms, and scrolling');
+                
+                showStatus('SDK initialized successfully!');
+                actions.style.display = 'block';
+                
+            } catch (error) {
+                logMessage(`❌ Failed to initialize SDK: ${error.message}`);
+                showStatus('Failed to initialize SDK', 'error');
+            }
+        };
+        
+        window.trackPageView = async function() {
+            if (!sdk) return;
+            try {
+                await sdk.trackPageView('/example-page', {
+                    page_category: 'demo',
+                    user_type: 'visitor'
+                });
+                logMessage('📄 Page view tracked');
+                showStatus('Page view tracked');
+            } catch (error) {
+                logMessage(`❌ Error tracking page view: ${error.message}`);
+            }
+        };
+        
+        window.trackCustomEvent = async function() {
+            if (!sdk) return;
+            try {
+                await sdk.trackEvent('custom_interaction', {
+                    interaction_type: 'demo_button',
+                    section: 'hero',
+                    value: 150
+                });
+                logMessage('🎯 Custom event tracked');
+                showStatus('Custom event tracked');
+            } catch (error) {
+                logMessage(`❌ Error tracking custom event: ${error.message}`);
+            }
+        };
+        
+        window.trackButtonClick = async function() {
+            if (!sdk) return;
+            try {
+                await sdk.trackButtonClick('demo_button', {
+                    button_text: 'Track Button Click',
+                    location: 'main_content'
+                });
+                logMessage('🖱️ Button click tracked');
+                showStatus('Button click tracked');
+            } catch (error) {
+                logMessage(`❌ Error tracking button click: ${error.message}`);
+            }
+        };
+        
+        window.trackProductView = async function() {
+            if (!sdk) return;
+            try {
+                await sdk.trackEvent('product_view', {
+                    product_id: 'premium_widget_001',
+                    product_name: 'Premium Widget',
+                    category: 'widgets',
+                    price: 99.99,
+                    currency: 'USD'
+                });
+                logMessage('👀 Product view tracked');
+                showStatus('Product view tracked');
+            } catch (error) {
+                logMessage(`❌ Error tracking product view: ${error.message}`);
+            }
+        };
+        
+        window.trackAddToCart = async function() {
+            if (!sdk) return;
+            try {
+                await sdk.trackEvent('add_to_cart', {
+                    product_id: 'premium_widget_001',
+                    quantity: 1,
+                    value: 99.99,
+                    currency: 'USD'
+                });
+                logMessage('🛒 Add to cart tracked');
+                showStatus('Add to cart tracked');
+            } catch (error) {
+                logMessage(`❌ Error tracking add to cart: ${error.message}`);
+            }
+        };
+        
+        window.trackPurchase = async function() {
+            if (!sdk) return;
+            try {
+                const transactionId = 'txn_' + Date.now();
+                await sdk.trackPurchase({
+                    amount: 99.99,
+                    currency: 'USD',
+                    productId: 'premium_widget_001',
+                    transactionId: transactionId,
+                    additionalData: {
+                        payment_method: 'credit_card',
+                        shipping: 9.99,
+                        tax: 8.50
+                    }
+                });
+                logMessage(`💰 Purchase tracked (${transactionId})`);
+                showStatus('Purchase tracked successfully!');
+            } catch (error) {
+                logMessage(`❌ Error tracking purchase: ${error.message}`);
+            }
+        };
+        
+        window.submitTestForm = async function(event) {
+            event.preventDefault();
+            if (!sdk) return;
+            
+            try {
+                const formData = new FormData(event.target);
+                await sdk.trackFormSubmit('lead_form', {
+                    form_type: 'contact',
+                    email: formData.get('email') || '',
+                    fields_count: 2
+                });
+                logMessage('📝 Form submission tracked');
+                showStatus('Form submission tracked');
+                event.target.reset();
+            } catch (error) {
+                logMessage(`❌ Error tracking form submission: ${error.message}`);
+            }
+        };
+        
+        // Log initial message
+        logMessage('🌟 Affiliate SDK Example Ready');
+        logMessage('Enter your affiliate code and app code to get started');
+        
+    </script>
+</body>
+</html>

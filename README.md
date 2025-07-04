@@ -1,93 +1,106 @@
-# 🚀 Analytics Tracking SDK
+# Events SDK - Universal Tracking SDK for Web
 
-Универсальный SDK для отслеживания конверсий и аналитики на всех платформах.
+## Installation
 
-## 📦 Доступные SDK
-
-| Платформа | Папка | Установка | Статус |
-|-----------|-------|-----------|---------|
-| **Web/React** | `/web` | `npm install github:UniversalSDK/events-sdk#main` | ✅ Готов |
-| **React Native** | `/react-native` | `npm install github:UniversalSDK/events-sdk#main-react-native` | ✅ Готов |
-| **Flutter** | `/flutter` | См. инструкцию в папке | ✅ Готов |
-| **iOS (Swift)** | `/ios-swift` | Swift Package Manager | ✅ Готов |
-| **Android (Kotlin)** | `/android-kotlin` | Gradle | ✅ Готов |
-
-## 🎯 Возможности
-
-- ✅ Автоматическое отслеживание событий
-- ✅ Поддержка Facebook Pixel, TikTok Pixel, Google Ads
-- ✅ Offline режим с очередью событий
-- ✅ Кроссплатформенная аналитика
-- ✅ GDPR совместимость
-
-## 🚀 Быстрый старт
-
-### Web/React
 ```bash
 npm install github:UniversalSDK/events-sdk#main
 ```
 
-```javascript
-import { AffiliateSDK } from 'github:UniversalSDK/events-sdk#main';
+## Quick Start
 
+```javascript
+import { AffiliateSDK } from 'events-sdk';
+
+// Initialize SDK with minimal configuration
 const tracker = new AffiliateSDK({
-  affiliateCode: 'YOUR_AFFILIATE_CODE',
-  appCode: 'YOUR_APP_CODE'
+  affiliateCode: 'EVT_35_43_6865be7124e04', // Your unique code
+  debug: true // Enable console logging
 });
 
-await tracker.initialize();
+// Initialize tracking
+tracker.initialize();
 ```
 
-### React Native
-```bash
-npm install github:UniversalSDK/events-sdk#main -- --save-prefix="~" -- react-native
+## Features
+
+- ✅ Automatic page view tracking (including SPA)
+- ✅ Click tracking on all interactive elements
+- ✅ Form submission tracking
+- ✅ Scroll depth tracking (25%, 50%, 75%, 100%)
+- ✅ Time on page tracking (30s, 60s, 120s)
+- ✅ Session management
+- ✅ Offline event queuing
+- ✅ Facebook, TikTok, Google Ads pixel integration
+
+## Configuration Options
+
+```javascript
+const tracker = new AffiliateSDK({
+  affiliateCode: 'YOUR_CODE',     // Required: Your unique affiliate code
+  appCode: 'optional-app-code',   // Optional: Additional app identifier
+  debug: false,                   // Show console logs
+  enablePixels: true,             // Enable ad platform pixels
+  autoTrack: {
+    pageViews: true,              // Auto-track page views
+    clicks: true,                 // Auto-track clicks
+    forms: true,                  // Auto-track form submits
+    scrolling: true,              // Auto-track scroll depth
+    timeOnPage: true              // Auto-track time on page
+  }
+});
 ```
 
-### Flutter
-```yaml
-dependencies:
-  affiliate_sdk:
-    git:
-      url: https://github.com/UniversalSDK/events-sdk.git
-      path: flutter
+## Manual Event Tracking
+
+```javascript
+// Track custom events
+await tracker.trackEvent('user_action', {
+  category: 'engagement',
+  value: 10
+});
+
+// Track purchases
+await tracker.trackPurchase({
+  amount: 99.99,
+  currency: 'USD',
+  productId: 'product_123',
+  transactionId: 'order_456'
+});
+
+// Track specific page views
+await tracker.trackPageView('/custom-page');
+
+// Track button clicks
+await tracker.trackButtonClick('subscribe_button');
+
+// Track form submissions
+await tracker.trackFormSubmit('contact_form');
 ```
 
-## 📖 Документация
+## React Integration
 
-Подробная документация находится в папке каждого SDK:
-- [Web/React SDK](/web/README.md)
-- [React Native SDK](/react-native/README.md)
-- [Flutter SDK](/flutter/README.md)
-- [iOS SDK](/ios-swift/README.md)
-- [Android SDK](/android-kotlin/README.md)
+```javascript
+import { useAffiliateSDK, usePageTracking } from 'events-sdk/react';
 
-## 🛠 Разработка
+function App() {
+  const sdk = useAffiliateSDK({
+    affiliateCode: 'YOUR_CODE',
+    debug: true
+  });
 
-### Структура репозитория
-```
-analytics-sdk/
-├── web/                 # Web/React SDK
-├── react-native/        # React Native SDK
-├── flutter/            # Flutter SDK
-├── ios-swift/          # iOS нативный SDK
-├── android-kotlin/     # Android нативный SDK
-└── README.md           # Этот файл
+  // Automatically track page views in SPA
+  usePageTracking(sdk);
+
+  return <YourApp />;
+}
 ```
 
-### Требования
-- Node.js 14+
-- npm или yarn
-- Для мобильных SDK: соответствующие среды разработки
+## API Endpoints
 
-## 📄 Лицензия
+The SDK sends events to: `https://affiliate.33rd.pro/api/universal-tracker.php`
 
-MIT License - используйте свободно в коммерческих проектах.
+Events are stored in the platform's tracking database for analytics and attribution.
 
-## 🤝 Поддержка
+## License
 
-- Email: support@your-company.com
-- Issues: https://github.com/your-company/analytics-sdk/issues
-
----
-
-Made with ❤️ by Your Company
+Proprietary - UniversalSDK
