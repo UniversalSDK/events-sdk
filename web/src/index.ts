@@ -160,6 +160,9 @@ export class AffiliateSDK {
 
       // Setup page lifecycle events
       this.setupPageLifecycle();
+      
+      // Перехватываем все события аналитики
+      this.interceptAnalytics();
 
       // Track page load
       await this.trackEvent('page_load', {
@@ -182,6 +185,7 @@ export class AffiliateSDK {
    */
   async trackEvent(eventName: string, parameters: EventParameters = {}): Promise<void> {
     try {
+      // Сохраняем все дополнительные данные в additional_data
       const eventData: any = {
         unique_code: this.config.affiliateCode,
         event_type: eventName,
@@ -189,7 +193,12 @@ export class AffiliateSDK {
         session_id: this.sessionId,
         platform: this.platform,
         url: window.location.href,
-        ...parameters,
+        // Важные поля на верхнем уровне
+        user_id: parameters.user_id,
+        amount: parameters.amount,
+        currency: parameters.currency,
+        // Все остальные параметры в additional_data
+        additional_data: JSON.stringify(parameters),
       };
       
       // Добавляем app_code только если он указан
@@ -268,9 +277,39 @@ export class AffiliateSDK {
         `${this.storagePrefix}_user_props`,
         JSON.stringify(properties)
       );
+      
+      // Также отправляем как событие для отслеживания
+      this.trackEvent('user_properties_set', properties as any);
     } catch (error) {
       this.logError('Failed to set user properties:', error);
     }
+  }
+
+  /**
+   * Универсальный метод для перехвата всех console.log с аналитикой
+   */
+  interceptAnalytics(): void {
+    const originalLog = console.log;
+    const sdk = this;
+    
+    console.log = function(...args: any[]) {
+      // Вызываем оригинальный console.log
+      originalLog.apply(console, args);
+      
+      // Проверяем, является ли это событием аналитики
+      const firstArg = args[0];
+      if (typeof firstArg === 'string' && firstArg.includes('[Web Analytics]')) {
+        // Парсим событие аналитики
+        const match = firstArg.match(/\[Web Analytics\]\s+(.+?):/);
+        if (match) {
+          const eventType = match[1];
+          const eventData = args[1] || {};
+          
+          // Отправляем в SDK
+          sdk.trackEvent(eventType, eventData);
+        }
+      }
+    };
   }
 
   /**
