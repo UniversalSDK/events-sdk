@@ -249,6 +249,24 @@ export class AffiliateSDK {
   }
 
   /**
+   * Track subscription status
+   */
+  async trackSubscriptionStatus(status: {
+    isActive: boolean;
+    subscriptionType?: string | null;
+    expiryDate?: string | null;
+    userId?: string;
+  }): Promise<void> {
+    await this.trackEvent('subscription_status', {
+      is_premium: status.isActive,
+      subscription_type: status.subscriptionType,
+      expiry_date: status.expiryDate,
+      user_id: status.userId,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  /**
    * Track button click
    */
   async trackButtonClick(buttonId: string, parameters: EventParameters = {}): Promise<void> {
@@ -296,17 +314,44 @@ export class AffiliateSDK {
       // Вызываем оригинальный console.log
       originalLog.apply(console, args);
       
-      // Проверяем, является ли это событием аналитики
       const firstArg = args[0];
-      if (typeof firstArg === 'string' && firstArg.includes('[Web Analytics]')) {
-        // Парсим событие аналитики
-        const match = firstArg.match(/\[Web Analytics\]\s+(.+?):/);
-        if (match) {
-          const eventType = match[1];
+      if (typeof firstArg === 'string') {
+        // 1. Перехватываем Web Analytics события
+        if (firstArg.includes('[Web Analytics]')) {
+          const match = firstArg.match(/\[Web Analytics\]\s+(.+?):/);
+          if (match) {
+            const eventType = match[1];
+            const eventData = args[1] || {};
+            sdk.trackEvent(eventType, eventData);
+          }
+        }
+        
+        // 2. Перехватываем проверки подписок
+        else if (firstArg.includes('Checking premium status') || 
+                 firstArg.includes('SUBSCRIPTION CHECK')) {
           const eventData = args[1] || {};
-          
-          // Отправляем в SDK
-          sdk.trackEvent(eventType, eventData);
+          sdk.trackEvent('subscription_check', {
+            is_premium: eventData.isActive || eventData.isPremium || false,
+            subscription_type: eventData.subscriptionType || null,
+            expiry_date: eventData.expiryDate || null,
+            check_type: firstArg.includes('STARTED') ? 'started' : 
+                       firstArg.includes('COMPLETED') ? 'completed' : 'status'
+          });
+        }
+        
+        // 3. Перехватываем загрузку продуктов для покупки
+        else if (firstArg.includes('Loaded products:')) {
+          const products = args[1] || [];
+          sdk.trackEvent('products_loaded', {
+            products_count: products.length,
+            products: products
+          });
+        }
+        
+        // 4. Перехватываем историю подписок
+        else if (firstArg.includes('subscription history:')) {
+          const history = args[1] || {};
+          sdk.trackEvent('subscription_history', history);
         }
       }
     };
