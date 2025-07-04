@@ -182,7 +182,7 @@ export class AffiliateSDK {
    */
   async trackEvent(eventName: string, parameters: EventParameters = {}): Promise<void> {
     try {
-      const eventData = {
+      const eventData: any = {
         unique_code: this.config.affiliateCode,
         event_type: eventName,
         timestamp: Date.now(),
@@ -826,6 +826,5 @@ export class AffiliateSDK {
   }
 }
 
-// Export both named and default for flexibility
-export { AffiliateSDK };
+// Export default only to avoid TypeScript conflicts
 export default AffiliateSDK;
