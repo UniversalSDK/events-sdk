@@ -10,7 +10,7 @@ class AffiliateSDK {
   constructor(config) {
     this.affiliateCode = config.affiliateCode;
     this.appCode = config.appCode;
-    this.baseUrl = config.baseUrl || 'https://affiliate.33rd.pro/api/tracker.php';
+    this.baseUrl = config.baseUrl || 'https://affiliate.33rd.pro/api/universal-tracker.php';
     this.debug = config.debug || false;
     this.platform = 'react-native';
     
@@ -76,9 +76,9 @@ class AffiliateSDK {
   async trackEvent(eventName, parameters = {}) {
     try {
       const eventData = {
-        affiliate_code: this.affiliateCode,
+        unique_code: this.affiliateCode,
         app_code: this.appCode,
-        event: eventName,
+        event_type: eventName,
         timestamp: Date.now(),
         session_id: this.sessionId,
         platform: this.platform,
@@ -235,7 +235,7 @@ class AffiliateSDK {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      this._log('Event sent successfully:', eventData.event);
+      this._log('Event sent successfully:', eventData.event_type);
 
     } catch (error) {
       this._logError('Failed to send event:', error);

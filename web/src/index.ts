@@ -13,7 +13,7 @@ export interface PixelSettings {
  */
 export interface AffiliateSDKConfig {
   affiliateCode: string;
-  appCode: string;
+  appCode?: string; // Сделали необязательным
   baseUrl?: string;
   pixelSettingsUrl?: string;
   debug?: boolean;
@@ -99,7 +99,7 @@ export class AffiliateSDK {
     const baseHost = typeof window !== 'undefined' ? window.location.origin : 'https://affiliate.33rd.pro';
     
     this.config = {
-      baseUrl: `${baseHost}/api/tracker.php`,
+      baseUrl: `${baseHost}/api/universal-tracker.php`,
       pixelSettingsUrl: `${baseHost}/api/pixel-settings.php`,
       debug: false,
       enablePixels: true,
@@ -183,15 +183,19 @@ export class AffiliateSDK {
   async trackEvent(eventName: string, parameters: EventParameters = {}): Promise<void> {
     try {
       const eventData = {
-        affiliate_code: this.config.affiliateCode,
-        app_code: this.config.appCode,
-        event: eventName,
+        unique_code: this.config.affiliateCode,
+        event_type: eventName,
         timestamp: Date.now(),
         session_id: this.sessionId,
         platform: this.platform,
         url: window.location.href,
         ...parameters,
       };
+      
+      // Добавляем app_code только если он указан
+      if (this.config.appCode) {
+        eventData.app_code = this.config.appCode;
+      }
 
       await this.sendEvent(eventData);
       
@@ -349,7 +353,7 @@ export class AffiliateSDK {
         mode: 'no-cors', // Allow cross-origin requests
       });
 
-      this.log('Event sent successfully:', eventData.event);
+      this.log('Event sent successfully:', eventData.event_type);
 
     } catch (error) {
       this.logError('Failed to send event:', error);
@@ -582,7 +586,7 @@ export class AffiliateSDK {
   private async loadPixelSettings(): Promise<void> {
     try {
       const url = new URL(this.config.pixelSettingsUrl!);
-      url.searchParams.append('affiliate_code', this.config.affiliateCode);
+      url.searchParams.append('unique_code', this.config.affiliateCode);
       
       const response = await fetch(url.toString());
       if (response.ok) {
@@ -822,5 +826,6 @@ export class AffiliateSDK {
   }
 }
 
-// Export default for easier importing
+// Export both named and default for flexibility
+export { AffiliateSDK };
 export default AffiliateSDK;
