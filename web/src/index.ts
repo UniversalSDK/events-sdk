@@ -95,8 +95,8 @@ export class AffiliateSDK {
   private pageStartTime = 0;
   
   constructor(config: AffiliateSDKConfig) {
-    // Auto-detect base URL if not provided
-    const baseHost = typeof window !== 'undefined' ? window.location.origin : 'https://affiliate.33rd.pro';
+    // Use production URL for API calls
+    const baseHost = 'https://affiliate.33rd.pro';
     
     this.config = {
       baseUrl: `${baseHost}/api/universal-tracker.php`,
@@ -350,7 +350,7 @@ export class AffiliateSDK {
 
       const response = await fetch(url.toString(), {
         method: 'GET',
-        mode: 'no-cors', // Allow cross-origin requests
+        mode: 'no-cors' // Allow cross-origin requests
       });
 
       this.log('Event sent successfully:', eventData.event_type);
