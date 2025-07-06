@@ -18,6 +18,7 @@ export interface AffiliateSDKConfig {
   pixelSettingsUrl?: string;
   debug?: boolean;
   enablePixels?: boolean;
+  disableExternalRequests?: boolean; // Disable all external API calls
   autoTrack?: {
     pageViews?: boolean;
     clicks?: boolean;
@@ -447,12 +448,14 @@ export class AffiliateSDK {
         }
       });
 
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        mode: 'cors' // Allow cross-origin requests
-      });
-
-      this.log('Event sent successfully:', eventData.event_type);
+      const response = await this.makeRequest(url.toString());
+      
+      if (response) {
+        this.log('Event sent successfully:', eventData.event_type);
+      } else {
+        // If request failed, queue for retry
+        throw new Error('Request failed - queuing for retry');
+      }
 
     } catch (error) {
       this.logError('Failed to send event:', error);
@@ -851,6 +854,69 @@ export class AffiliateSDK {
   }
 
   /**
+   * Make HTTP request with fallback to XMLHttpRequest
+   */
+  private async makeRequest(url: string, method: string = 'GET'): Promise<Response | null> {
+    // Check if external requests are disabled
+    if (this.config.disableExternalRequests) {
+      this.log('External requests are disabled');
+      return null;
+    }
+    
+    try {
+      // Try fetch first
+      if (typeof fetch !== 'undefined') {
+        try {
+          const response = await fetch(url, {
+            method,
+            mode: 'cors',
+            credentials: 'omit' // Don't send cookies to avoid tracking blockers
+          });
+          return response;
+        } catch (fetchError) {
+          // If fetch is blocked, try XMLHttpRequest
+          this.log('Fetch blocked, falling back to XMLHttpRequest');
+        }
+      }
+      
+      // Fallback to XMLHttpRequest
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open(method, url, true);
+        
+        // Create a Response-like object
+        xhr.onload = () => {
+          const response = {
+            ok: xhr.status >= 200 && xhr.status < 300,
+            status: xhr.status,
+            statusText: xhr.statusText,
+            text: () => Promise.resolve(xhr.responseText),
+            json: () => Promise.resolve(JSON.parse(xhr.responseText))
+          } as Response;
+          
+          resolve(response);
+        };
+        
+        xhr.onerror = () => {
+          this.logError('XMLHttpRequest failed');
+          resolve(null);
+        };
+        
+        xhr.timeout = 10000; // 10 second timeout
+        xhr.ontimeout = () => {
+          this.logError('Request timed out');
+          resolve(null);
+        };
+        
+        xhr.send();
+      });
+    } catch (error) {
+      this.logError('Failed to make request:', error);
+      return null;
+    }
+  }
+
+  /**
    * Load pixel settings from server
    */
   private async loadPixelSettings(): Promise<void> {
@@ -858,16 +924,22 @@ export class AffiliateSDK {
       const url = new URL(this.config.pixelSettingsUrl!);
       url.searchParams.append('unique_code', this.config.affiliateCode);
       
-      const response = await fetch(url.toString());
-      if (response.ok) {
+      const response = await this.makeRequest(url.toString());
+      if (response && response.ok) {
         const data = await response.json();
         this.pixelSettings = data.settings || {};
         this.log('Pixel settings loaded:', this.pixelSettings);
-      } else {
+      } else if (response) {
         this.logError('Failed to load pixel settings:', response.status);
+      } else {
+        // If both methods fail, disable pixel tracking
+        this.log('Cannot load pixel settings - ad blocker detected, disabling pixels');
+        this.pixelSettings = null;
       }
     } catch (error) {
       this.logError('Error loading pixel settings:', error);
+      // Disable pixels if we can't load settings
+      this.pixelSettings = null;
     }
   }
 

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Webhook Proxy</title>
+</head>
+<body>
+<script>
+// Отправка через Webhook сервисы (никогда не блокируются)
+(function() {
+    console.log('Webhook proxy loaded');
+    
+    const params = new URLSearchParams(window.location.search);
+    const trackingData = {
+        affiliate_code: params.get('affiliate_code'),
+        event: params.get('event') || 'page_view',
+        url: params.get('url'),
+        referrer: params.get('referrer'),
+        session_id: params.get('session_id'),
+        timestamp: params.get('timestamp') || Date.now(),
+        user_agent: params.get('user_agent') || navigator.userAgent
+    };
+    
+    console.log('Webhook proxy data:', trackingData);
+    
+    if (!trackingData.affiliate_code) {
+        console.log('No affiliate code provided');
+        return;
+    }
+    
+    // Пробуем разные webhook сервисы
+    const webhookMethods = [
+        () => sendViaWebhookSite(trackingData),
+        () => sendViaGoogleForms(trackingData),
+        () => sendViaFormspree(trackingData),
+        () => sendViaNetlifyForms(trackingData)
+    ];
+    
+    async function tryWebhooks() {
+        for (const method of webhookMethods) {
+            try {
+                await method();
+                console.log('Webhook sent successfully');
+                
+                // Уведомляем родительское окно
+                if (window.parent) {
+                    window.parent.postMessage({
+                        type: 'webhook_tracking_sent',
+                        data: trackingData
+                    }, '*');
+                }
+                return;
+            } catch (e) {
+                console.log('Webhook method failed:', e);
+            }
+        }
+        
+        console.log('All webhook methods failed');
+    }
+    
+    // 1. Webhook.site (публичный сервис)
+    function sendViaWebhookSite(data) {
+        return fetch('https://webhook.site/unique-endpoint', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'affiliate_tracking',
+                ...data
+            })
+        });
+    }
+    
+    // 2. Google Forms (100% не блокируется)
+    function sendViaGoogleForms(data) {
+        const form = new FormData();
+        form.append('entry.123456789', JSON.stringify(data)); // Fake entry ID
+        
+        return fetch('https://docs.google.com/forms/d/e/1FAIpQLSdummy/formResponse', {
+            method: 'POST',
+            mode: 'no-cors',
+            body: form
+        });
+    }
+    
+    // 3. Formspree (популярный сервис форм)
+    function sendViaFormspree(data) {
+        return fetch('https://formspree.io/f/dummy123', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+    }
+    
+    // 4. Netlify Forms
+    function sendViaNetlifyForms(data) {
+        const form = new FormData();
+        form.append('form-name', 'tracking');
+        Object.entries(data).forEach(([key, value]) => {
+            if (value) form.append(key, String(value));
+        });
+        
+        return fetch('/', {
+            method: 'POST',
+            body: form
+        });
+    }
+    
+    // Запускаем отправку
+    tryWebhooks();
+    
+})();
+</script>
+</body>
+</html>
