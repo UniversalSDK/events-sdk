@@ -164,6 +164,25 @@ export class AffiliateSDK {
       // Перехватываем все события аналитики
       this.interceptAnalytics();
 
+      // Проверяем attribution cookie
+      const attributionCookie = this.getCookie('aff_attribution');
+      if (attributionCookie) {
+        try {
+          const attributionData = JSON.parse(atob(attributionCookie));
+          this.log('Found attribution data:', attributionData);
+          
+          // Отправляем событие атрибуции
+          await this.trackEvent('attribution_detected', {
+            click_id: attributionData.click_id,
+            affiliate_code: attributionData.affiliate_code,
+            original_timestamp: attributionData.timestamp,
+            platform: attributionData.platform
+          });
+        } catch (e) {
+          this.logError('Failed to parse attribution cookie:', e);
+        }
+      }
+
       // Track page load
       await this.trackEvent('page_load', {
         session_id: this.sessionId,
@@ -185,14 +204,27 @@ export class AffiliateSDK {
    */
   async trackEvent(eventName: string, parameters: EventParameters = {}): Promise<void> {
     try {
+      // Генерируем fingerprint для атрибуции
+      const fingerprint = this.generateFingerprint();
+      
       // Сохраняем все дополнительные данные в additional_data
       const eventData: any = {
         unique_code: this.config.affiliateCode,
         event_type: eventName,
         timestamp: Date.now(),
         session_id: this.sessionId,
+        fingerprint: fingerprint,
         platform: this.platform,
         url: window.location.href,
+        referrer: document.referrer,
+        user_agent: navigator.userAgent,
+        screen_resolution: `${screen.width}x${screen.height}`,
+        language: navigator.language,
+        // UTM параметры из URL
+        utm_source: this.getURLParameter('utm_source') || '',
+        utm_medium: this.getURLParameter('utm_medium') || '',
+        utm_campaign: this.getURLParameter('utm_campaign') || '',
+        utm_content: this.getURLParameter('utm_content') || '',
         // Важные поля на верхнем уровне
         user_id: parameters.user_id,
         amount: parameters.amount,
@@ -650,6 +682,78 @@ export class AffiliateSDK {
   private generateRandomString(length: number): string {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  }
+
+  /**
+   * Generate fingerprint for attribution matching
+   */
+  private generateFingerprint(): string {
+    const components = [
+      navigator.userAgent,
+      navigator.language,
+      screen.width + 'x' + screen.height,
+      screen.colorDepth,
+      new Date().getTimezoneOffset(),
+      navigator.platform,
+      // Canvas fingerprinting
+      this.getCanvasFingerprint()
+    ];
+    
+    // Simple hash function
+    let hash = 0;
+    const str = components.join('|');
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    return Math.abs(hash).toString(16);
+  }
+
+  /**
+   * Get canvas fingerprint
+   */
+  private getCanvasFingerprint(): string {
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return 'no-canvas';
+      
+      ctx.textBaseline = 'top';
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#f60';
+      ctx.fillRect(125, 1, 62, 20);
+      ctx.fillStyle = '#069';
+      ctx.fillText('Canvas fingerprint', 2, 15);
+      ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+      ctx.fillText('Canvas fingerprint', 4, 17);
+      
+      return canvas.toDataURL().slice(-50);
+    } catch (e) {
+      return 'canvas-error';
+    }
+  }
+
+  /**
+   * Get URL parameter
+   */
+  private getURLParameter(name: string): string | null {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name);
+  }
+
+  /**
+   * Get cookie value
+   */
+  private getCookie(name: string): string | null {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+      const cookieValue = parts.pop()?.split(';').shift();
+      return cookieValue || null;
+    }
+    return null;
   }
 
   private log(...args: any[]): void {
