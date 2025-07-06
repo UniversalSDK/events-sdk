@@ -1,6 +1,6 @@
 {
   "name": "events-sdk",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Affiliate tracking SDK for React and web applications",
   "main": "web/dist/index.js",
   "module": "web/dist/index.esm.js",

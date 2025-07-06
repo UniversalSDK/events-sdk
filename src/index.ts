@@ -119,20 +119,15 @@ export class AffiliateSDK {
     // Bind methods to preserve context
     this.handleBeforeUnload = this.handleBeforeUnload.bind(this);
     this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
+    
+    // Setup global error handler for this SDK instance
+    this.setupGlobalErrorHandler();
   }
 
   /**
    * Initialize the SDK
    */
   async initialize(): Promise<void> {
-    // Wrap entire method to catch any unhandled rejections
-    return this._initializeInternal().catch(error => {
-      this.logError('SDK initialization failed:', error);
-      this.isInitialized = false;
-    });
-  }
-
-  private async _initializeInternal(): Promise<void> {
     try {
       if (this.isInitialized) {
         this.log('SDK already initialized');
@@ -211,27 +206,19 @@ export class AffiliateSDK {
    * Track a custom event
    */
   async trackEvent(eventName: string, parameters: EventParameters = {}): Promise<void> {
-    // Wrap to catch any unhandled errors
-    return this._trackEventInternal(eventName, parameters).catch(error => {
-      this.logError('Failed to track event:', eventName, error);
-    });
-  }
-
-  private async _trackEventInternal(eventName: string, parameters: EventParameters = {}): Promise<void> {
-    // Silently skip if SDK failed to initialize
-    if (!this.isInitialized && !this.config.disableExternalRequests) {
-      this.log('SDK not initialized, queueing event:', eventName);
-      // Still queue the event for later
-      this.eventQueue.push({
-        event_type: eventName,
-        parameters,
-        queued_at: Date.now(),
-        retry_count: 0
-      });
-      return;
-    }
-    
     try {
+      // Silently skip if SDK failed to initialize
+      if (!this.isInitialized && !this.config.disableExternalRequests) {
+        this.log('SDK not initialized, queueing event:', eventName);
+        // Still queue the event for later
+        this.eventQueue.push({
+          event_type: eventName,
+          parameters,
+          queued_at: Date.now(),
+          retry_count: 0
+        });
+        return;
+      }
       // Сохраняем все дополнительные данные в additional_data
       const eventData: any = {
         unique_code: this.config.affiliateCode,
@@ -271,13 +258,11 @@ export class AffiliateSDK {
    * Track page view
    */
   async trackPageView(path?: string, parameters: EventParameters = {}): Promise<void> {
-    return this.trackEvent('page_view', {
+    await this.trackEvent('page_view', {
       page_path: path || window.location.pathname,
       page_title: document.title,
       referrer: document.referrer,
       ...parameters,
-    }).catch(() => {
-      // Error already handled in trackEvent
     });
   }
 
@@ -285,14 +270,12 @@ export class AffiliateSDK {
    * Track purchase event
    */
   async trackPurchase(purchaseData: PurchaseData): Promise<void> {
-    return this.trackEvent('purchase', {
+    await this.trackEvent('purchase', {
       amount: purchaseData.amount,
       currency: purchaseData.currency || 'USD',
       product_id: purchaseData.productId,
       transaction_id: purchaseData.transactionId,
       ...purchaseData.additionalData,
-    }).catch(() => {
-      // Error already handled in trackEvent
     });
   }
 
@@ -318,11 +301,9 @@ export class AffiliateSDK {
    * Track button click
    */
   async trackButtonClick(buttonId: string, parameters: EventParameters = {}): Promise<void> {
-    return this.trackEvent('button_click', {
+    await this.trackEvent('button_click', {
       button_id: buttonId,
       ...parameters,
-    }).catch(() => {
-      // Error already handled in trackEvent
     });
   }
 
@@ -330,11 +311,9 @@ export class AffiliateSDK {
    * Track form submission
    */
   async trackFormSubmit(formName: string, parameters: EventParameters = {}): Promise<void> {
-    return this.trackEvent('form_submit', {
+    await this.trackEvent('form_submit', {
       form_name: formName,
       ...parameters,
-    }).catch(() => {
-      // Error already handled in trackEvent
     });
   }
 
@@ -431,11 +410,9 @@ export class AffiliateSDK {
     if (!this.sessionStartTime) return;
 
     const sessionDuration = Date.now() - this.sessionStartTime;
-    return this.trackEvent('session_end', {
+    await this.trackEvent('session_end', {
       duration: sessionDuration,
       session_id: this.sessionId,
-    }).catch(() => {
-      // Error already handled in trackEvent
     });
   }
 
@@ -478,15 +455,6 @@ export class AffiliateSDK {
   }
 
   private async sendEvent(eventData: Record<string, any>): Promise<void> {
-    // Don't let errors propagate up
-    try {
-      await this._sendEventInternal(eventData);
-    } catch (error) {
-      // Silently handle error - already logged inside
-    }
-  }
-
-  private async _sendEventInternal(eventData: Record<string, any>): Promise<void> {
     try {
       // Add fingerprint to all events
       if (!eventData.fingerprint) {
@@ -920,6 +888,42 @@ export class AffiliateSDK {
       // Use console.warn instead of console.error to avoid triggering error boundaries
       console.warn('[AffiliateSDK]', ...args);
     }
+  }
+
+  /**
+   * Setup global error handler to catch any unhandled promises from SDK
+   */
+  private setupGlobalErrorHandler(): void {
+    // Store original handler
+    const originalHandler = window.onunhandledrejection;
+    
+    window.onunhandledrejection = (event: PromiseRejectionEvent) => {
+      // Check if error is from our SDK (by checking stack trace or error message)
+      const error = event.reason;
+      const errorString = error?.stack || error?.toString() || '';
+      
+      // If error contains our API URLs or SDK markers, handle it silently
+      if (errorString.includes('affiliate.33rd.pro') || 
+          errorString.includes('AffiliateSDK') ||
+          errorString.includes('events-sdk') ||
+          errorString.includes('universal-tracker.php') ||
+          errorString.includes('pixel-settings.php') ||
+          errorString.includes('index.esm.js') ||
+          errorString.includes('Failed to fetch') ||
+          (errorString.includes('fetch') && errorString.includes('ERR_BLOCKED_BY_CLIENT'))) {
+        
+        this.log('SDK error caught and handled:', error);
+        
+        // Prevent the error from bubbling up
+        event.preventDefault();
+        return;
+      }
+      
+      // If not our error, call original handler if exists
+      if (originalHandler) {
+        originalHandler.call(window, event);
+      }
+    };
   }
 
   /**
