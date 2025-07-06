@@ -133,7 +133,8 @@ export class AffiliateSDK {
 
       // Check if we're in a browser environment
       if (typeof window === 'undefined') {
-        throw new Error('AffiliateSDK can only be used in browser environment');
+        this.logError('AffiliateSDK can only be used in browser environment');
+        return;
       }
 
       // Generate or restore session ID
@@ -180,7 +181,9 @@ export class AffiliateSDK {
 
     } catch (error) {
       this.logError('Failed to initialize SDK:', error);
-      throw error;
+      // Don't throw error to avoid breaking the app
+      // SDK will work in degraded mode
+      this.isInitialized = false;
     }
   }
 
@@ -188,6 +191,19 @@ export class AffiliateSDK {
    * Track a custom event
    */
   async trackEvent(eventName: string, parameters: EventParameters = {}): Promise<void> {
+    // Silently skip if SDK failed to initialize
+    if (!this.isInitialized && !this.config.disableExternalRequests) {
+      this.log('SDK not initialized, queueing event:', eventName);
+      // Still queue the event for later
+      this.eventQueue.push({
+        event_type: eventName,
+        parameters,
+        queued_at: Date.now(),
+        retry_count: 0
+      });
+      return;
+    }
+    
     try {
       // Сохраняем все дополнительные данные в additional_data
       const eventData: any = {
@@ -454,7 +470,14 @@ export class AffiliateSDK {
         this.log('Event sent successfully:', eventData.event_type);
       } else {
         // If request failed, queue for retry
-        throw new Error('Request failed - queuing for retry');
+        this.log('Request failed - queuing for retry');
+        // Queue event for retry
+        this.eventQueue.push({
+          ...eventData,
+          retry_count: 0,
+          queued_at: Date.now(),
+        });
+        return;
       }
 
     } catch (error) {
@@ -849,7 +872,8 @@ export class AffiliateSDK {
 
   private logError(...args: any[]): void {
     if (this.config.debug) {
-      console.error('[AffiliateSDK Error]', ...args);
+      // Use console.warn instead of console.error to avoid triggering error boundaries
+      console.warn('[AffiliateSDK]', ...args);
     }
   }
 
