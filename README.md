@@ -18,7 +18,7 @@ const tracker = new AffiliateSDK({
 });
 
 // Initialize tracking
-tracker.initialize();
+tracker.initialize().catch(console.warn);
 ```
 
 ## Features

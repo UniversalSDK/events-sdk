@@ -125,6 +125,14 @@ export class AffiliateSDK {
    * Initialize the SDK
    */
   async initialize(): Promise<void> {
+    // Wrap entire method to catch any unhandled rejections
+    return this._initializeInternal().catch(error => {
+      this.logError('SDK initialization failed:', error);
+      this.isInitialized = false;
+    });
+  }
+
+  private async _initializeInternal(): Promise<void> {
     try {
       if (this.isInitialized) {
         this.log('SDK already initialized');
@@ -151,12 +159,20 @@ export class AffiliateSDK {
 
       // Load pixel settings
       if (this.config.enablePixels) {
-        await this.loadPixelSettings();
-        this.initializePixels();
+        try {
+          await this.loadPixelSettings();
+          this.initializePixels();
+        } catch (e) {
+          this.log('Failed to load pixel settings, continuing without pixels');
+        }
       }
 
       // Process any queued events
-      await this.processEventQueue();
+      try {
+        await this.processEventQueue();
+      } catch (e) {
+        this.log('Failed to process event queue');
+      }
 
       // Setup auto-tracking
       if (this.config.autoTrack) {
@@ -170,11 +186,15 @@ export class AffiliateSDK {
       this.interceptAnalytics();
 
       // Track page load
-      await this.trackEvent('page_load', {
-        session_id: this.sessionId,
-        platform: this.platform,
-        ...this.deviceInfo,
-      });
+      try {
+        await this.trackEvent('page_load', {
+          session_id: this.sessionId,
+          platform: this.platform,
+          ...this.deviceInfo,
+        });
+      } catch (e) {
+        this.log('Failed to track page load event');
+      }
 
       this.isInitialized = true;
       this.log('SDK initialized successfully');
@@ -191,6 +211,13 @@ export class AffiliateSDK {
    * Track a custom event
    */
   async trackEvent(eventName: string, parameters: EventParameters = {}): Promise<void> {
+    // Wrap to catch any unhandled errors
+    return this._trackEventInternal(eventName, parameters).catch(error => {
+      this.logError('Failed to track event:', eventName, error);
+    });
+  }
+
+  private async _trackEventInternal(eventName: string, parameters: EventParameters = {}): Promise<void> {
     // Silently skip if SDK failed to initialize
     if (!this.isInitialized && !this.config.disableExternalRequests) {
       this.log('SDK not initialized, queueing event:', eventName);
@@ -244,12 +271,13 @@ export class AffiliateSDK {
    * Track page view
    */
   async trackPageView(path?: string, parameters: EventParameters = {}): Promise<void> {
-    const pagePath = path || window.location.pathname;
-    await this.trackEvent('page_view', {
-      page_path: pagePath,
+    return this.trackEvent('page_view', {
+      page_path: path || window.location.pathname,
       page_title: document.title,
       referrer: document.referrer,
       ...parameters,
+    }).catch(() => {
+      // Error already handled in trackEvent
     });
   }
 
@@ -257,15 +285,15 @@ export class AffiliateSDK {
    * Track purchase event
    */
   async trackPurchase(purchaseData: PurchaseData): Promise<void> {
-    const eventData = {
+    return this.trackEvent('purchase', {
       amount: purchaseData.amount,
       currency: purchaseData.currency || 'USD',
       product_id: purchaseData.productId,
       transaction_id: purchaseData.transactionId,
       ...purchaseData.additionalData,
-    };
-
-    await this.trackEvent('purchase', eventData);
+    }).catch(() => {
+      // Error already handled in trackEvent
+    });
   }
 
   /**
@@ -290,9 +318,11 @@ export class AffiliateSDK {
    * Track button click
    */
   async trackButtonClick(buttonId: string, parameters: EventParameters = {}): Promise<void> {
-    await this.trackEvent('button_click', {
+    return this.trackEvent('button_click', {
       button_id: buttonId,
       ...parameters,
+    }).catch(() => {
+      // Error already handled in trackEvent
     });
   }
 
@@ -300,9 +330,11 @@ export class AffiliateSDK {
    * Track form submission
    */
   async trackFormSubmit(formName: string, parameters: EventParameters = {}): Promise<void> {
-    await this.trackEvent('form_submit', {
+    return this.trackEvent('form_submit', {
       form_name: formName,
       ...parameters,
+    }).catch(() => {
+      // Error already handled in trackEvent
     });
   }
 
@@ -442,6 +474,15 @@ export class AffiliateSDK {
   }
 
   private async sendEvent(eventData: Record<string, any>): Promise<void> {
+    // Don't let errors propagate up
+    try {
+      await this._sendEventInternal(eventData);
+    } catch (error) {
+      // Silently handle error - already logged inside
+    }
+  }
+
+  private async _sendEventInternal(eventData: Record<string, any>): Promise<void> {
     try {
       // Add fingerprint to all events
       if (!eventData.fingerprint) {
