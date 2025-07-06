@@ -349,7 +349,9 @@ export class AffiliateSDK {
       );
       
       // Также отправляем как событие для отслеживания
-      this.trackEvent('user_properties_set', properties as any);
+      this.trackEvent('user_properties_set', properties as any).catch(() => {
+        // Silently ignore errors
+      });
     } catch (error) {
       this.logError('Failed to set user properties:', error);
     }
@@ -374,7 +376,7 @@ export class AffiliateSDK {
           if (match) {
             const eventType = match[1];
             const eventData = args[1] || {};
-            sdk.trackEvent(eventType, eventData);
+            sdk.trackEvent(eventType, eventData).catch(() => {});
           }
         }
         
@@ -388,7 +390,7 @@ export class AffiliateSDK {
             expiry_date: eventData.expiryDate || null,
             check_type: firstArg.includes('STARTED') ? 'started' : 
                        firstArg.includes('COMPLETED') ? 'completed' : 'status'
-          });
+          }).catch(() => {});
         }
         
         // 3. Перехватываем загрузку продуктов для покупки
@@ -397,13 +399,13 @@ export class AffiliateSDK {
           sdk.trackEvent('products_loaded', {
             products_count: products.length,
             products: products
-          });
+          }).catch(() => {});
         }
         
         // 4. Перехватываем историю подписок
         else if (firstArg.includes('subscription history:')) {
           const history = args[1] || {};
-          sdk.trackEvent('subscription_history', history);
+          sdk.trackEvent('subscription_history', history).catch(() => {});
         }
       }
     };
@@ -429,9 +431,11 @@ export class AffiliateSDK {
     if (!this.sessionStartTime) return;
 
     const sessionDuration = Date.now() - this.sessionStartTime;
-    await this.trackEvent('session_end', {
+    return this.trackEvent('session_end', {
       duration: sessionDuration,
       session_id: this.sessionId,
+    }).catch(() => {
+      // Error already handled in trackEvent
     });
   }
 
@@ -609,7 +613,7 @@ export class AffiliateSDK {
           element_class: clickTarget.className || '',
           element_text: clickTarget.textContent?.trim().substring(0, 100) || '',
           element_role: role || '',
-        });
+        }).catch(() => {});
         break;
       }
       
@@ -627,7 +631,7 @@ export class AffiliateSDK {
       form_name: form.name || '',
       form_action: form.action || '',
       form_method: form.method || 'get',
-    });
+    }).catch(() => {});
   }
 
   private handleScroll(): void {
@@ -644,7 +648,7 @@ export class AffiliateSDK {
         this.trackEvent('scroll_depth', {
           scroll_percent: thresholdNum,
           page_height: documentHeight,
-        });
+        }).catch(() => {});
       }
     });
   }
@@ -660,7 +664,7 @@ export class AffiliateSDK {
           this.trackEvent('time_on_page', {
             time_spent: thresholdNum,
             page_url: window.location.href,
-          });
+          }).catch(() => {});
         }
       });
     };
@@ -725,7 +729,7 @@ export class AffiliateSDK {
       this.trackEvent('session_start', {
         session_id: this.sessionId,
         returning_user: true,
-      });
+      }).catch(() => {});
     }
   }
 
@@ -854,7 +858,7 @@ export class AffiliateSDK {
           referrer: referrer,
           has_deep_link: !!providerToken || !!playStoreClickId,
           has_cookie: !!clickIdFromCookie
-        });
+        }).catch(() => {});
       }
       
     } catch (error) {
