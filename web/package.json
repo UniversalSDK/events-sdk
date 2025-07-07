@@ -1,0 +1,68 @@
+{
+  "name": "events-sdk",
+  "version": "1.0.4",
+  "description": "Affiliate tracking SDK for React and web applications",
+  "main": "web/dist/index.js",
+  "module": "web/dist/index.esm.js",
+  "types": "web/dist/index.d.ts",
+  "files": [
+    "web/dist",
+    "README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "build:watch": "rollup -c -w",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src --ext .ts,.js"
+  },
+  "keywords": [
+    "affiliate",
+    "tracking",
+    "analytics",
+    "web",
+    "javascript",
+    "typescript",
+    "sdk"
+  ],
+  "author": "Your Company",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-company/affiliate-sdk.git",
+    "directory": "web"
+  },
+  "homepage": "https://github.com/your-company/affiliate-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/your-company/affiliate-sdk/issues"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "@types/jest": "^29.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.0.0",
+    "jest-environment-jsdom": "^29.0.0",
+    "rollup": "^3.29.5",
+    "ts-jest": "^29.0.0",
+    "tslib": "^2.6.2",
+    "typescript": "^5.8.3"
+  },
+  "peerDependencies": {
+    "react": ">=16.8.0",
+    "react-router-dom": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-router-dom": {
+      "optional": true
+    }
+  }
+}
