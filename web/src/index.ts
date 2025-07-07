@@ -57,6 +57,7 @@ export interface UserProperties {
  * Device information interface
  */
 interface DeviceInfo {
+  device_id: string;
   user_agent: string;
   screen_width: number;
   screen_height: number;
@@ -227,6 +228,7 @@ export class AffiliateSDK {
         session_id: this.sessionId,
         platform: this.platform,
         url: window.location.href,
+        device_id: this.deviceInfo?.device_id, // Добавляем постоянный ID устройства
         // Важные поля на верхнем уровне
         user_id: parameters.user_id,
         amount: parameters.amount,
@@ -422,7 +424,16 @@ export class AffiliateSDK {
     const screen = window.screen;
     const nav = navigator;
     
+    // Генерируем или получаем постоянный device_id
+    let deviceId = localStorage.getItem(`${this.storagePrefix}_device_id`);
+    if (!deviceId) {
+      // Создаем уникальный идентификатор устройства
+      deviceId = `dev_${Date.now()}_${this.generateRandomString(16)}`;
+      localStorage.setItem(`${this.storagePrefix}_device_id`, deviceId);
+    }
+    
     this.deviceInfo = {
+      device_id: deviceId, // Постоянный ID устройства
       user_agent: nav.userAgent,
       screen_width: screen.width,
       screen_height: screen.height,
@@ -765,6 +776,11 @@ export class AffiliateSDK {
    */
   private checkDeepLinkAttribution(): void {
     try {
+      // Check if running in Capacitor
+      if ((window as any).Capacitor) {
+        this.checkCapacitorDeepLink();
+      }
+      
       // 1. Check URL parameters (App Store: pt, ct, mt)
       const urlParams = new URLSearchParams(window.location.search);
       const providerToken = urlParams.get('pt'); // click_id from App Store
@@ -874,6 +890,68 @@ export class AffiliateSDK {
     } catch (error) {
       this.logError('Failed to get attribution data:', error);
       return null;
+    }
+  }
+
+  /**
+   * Check for Capacitor deep links
+   */
+  private async checkCapacitorDeepLink(): Promise<void> {
+    try {
+      // Dynamically import Capacitor App plugin
+      const { App } = await import('@capacitor/app');
+      
+      // Get launch URL (when app starts from deep link)
+      const launchUrl = await App.getLaunchUrl();
+      
+      if (launchUrl?.url) {
+        this.log('Capacitor Deep Link detected:', launchUrl.url);
+        
+        // Parse the deep link URL
+        const url = new URL(launchUrl.url);
+        const clickId = url.searchParams.get('click_id') || 
+                       url.searchParams.get('pt') || 
+                       url.searchParams.get('clickId');
+        
+        if (clickId) {
+          // Store attribution data
+          this.storeAttributionData({
+            click_id: clickId,
+            attribution_method: 'capacitor_deep_link',
+            deep_link_url: launchUrl.url,
+            timestamp: Date.now()
+          });
+          
+          // Track attribution event
+          this.trackEvent('app_attribution', {
+            click_id: clickId,
+            attribution_method: 'capacitor_deep_link',
+            deep_link_url: launchUrl.url,
+            source: 'capacitor_launch'
+          }).catch(() => {});
+        }
+      }
+      
+      // Listen for app URL open events (when app is already running)
+      App.addListener('appUrlOpen', (data) => {
+        this.log('Capacitor App URL opened:', data.url);
+        
+        const url = new URL(data.url);
+        const clickId = url.searchParams.get('click_id') || 
+                       url.searchParams.get('pt') || 
+                       url.searchParams.get('clickId');
+        
+        if (clickId) {
+          this.trackEvent('app_url_open', {
+            click_id: clickId,
+            deep_link_url: data.url,
+            source: 'capacitor_running'
+          }).catch(() => {});
+        }
+      });
+      
+    } catch (error) {
+      this.log('Capacitor not available or App plugin not installed:', error);
     }
   }
 

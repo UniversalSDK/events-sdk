@@ -1,7 +1,41 @@
+# Dependencies
 node_modules/
+**/node_modules/
+
+# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Environment
 .env
-.cache
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+*.min.js
+*.min.css
+
+# Testing
 coverage/
 .nyc_output/
+*.test.js
+test-*.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+.cache/
+tmp/
+temp/
