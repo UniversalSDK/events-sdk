@@ -1,0 +1,35 @@
+{
+  "name": "@universalsdk/events-sdk",
+  "version": "1.0.0",
+  "description": "Multi-platform affiliate tracking SDK",
+  "main": "web/dist/index.js",
+  "module": "web/dist/index.esm.js",
+  "types": "web/dist/index.d.ts",
+  "files": [
+    "web/dist",
+    "web/src",
+    "web/README.md"
+  ],
+  "scripts": {
+    "build": "cd web && npm run build",
+    "test": "cd web && npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/UniversalSDK/events-sdk.git"
+  },
+  "keywords": [
+    "affiliate",
+    "tracking",
+    "sdk",
+    "analytics",
+    "web",
+    "react"
+  ],
+  "author": "UniversalSDK",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/UniversalSDK/events-sdk/issues"
+  },
+  "homepage": "https://github.com/UniversalSDK/events-sdk#readme"
+}
