@@ -363,12 +363,27 @@ export class AffiliateSDK {
         
         // 2. Перехватываем проверки подписок
         else if (firstArg.includes('Checking premium status') || 
-                 firstArg.includes('SUBSCRIPTION CHECK')) {
+                 (firstArg.includes('SUBSCRIPTION CHECK') && !firstArg.includes('[Web Analytics]'))) {
           const eventData = args[1] || {};
+          
+          // Универсальная проверка разных форматов полей
+          const isPremium = eventData.isActive || 
+                           eventData.isPremium || 
+                           eventData.is_premium || 
+                           false;
+          
+          const subscriptionType = eventData.subscriptionType || 
+                                  eventData.subscription_type || 
+                                  null;
+          
+          const expiryDate = eventData.expiryDate || 
+                            eventData.expiry_date || 
+                            null;
+          
           sdk.trackEvent('subscription_check', {
-            is_premium: eventData.isActive || eventData.isPremium || false,
-            subscription_type: eventData.subscriptionType || null,
-            expiry_date: eventData.expiryDate || null,
+            is_premium: isPremium,
+            subscription_type: subscriptionType,
+            expiry_date: expiryDate,
             check_type: firstArg.includes('STARTED') ? 'started' : 
                        firstArg.includes('COMPLETED') ? 'completed' : 'status'
           }).catch(() => {});
@@ -387,6 +402,40 @@ export class AffiliateSDK {
         else if (firstArg.includes('subscription history:')) {
           const history = args[1] || {};
           sdk.trackEvent('subscription_history', history).catch(() => {});
+        }
+        
+        // 5. Перехватываем события покупки (универсально)
+        else if (firstArg.toLowerCase().includes('purchase') || 
+                 firstArg.toLowerCase().includes('payment') ||
+                 firstArg.toLowerCase().includes('subscription activated') ||
+                 firstArg.toLowerCase().includes('subscription purchased')) {
+          const purchaseData = args[1] || {};
+          
+          // Универсальная проверка разных форматов полей
+          const amount = purchaseData.amount || 
+                        purchaseData.price || 
+                        purchaseData.value || 
+                        0;
+          
+          const productId = purchaseData.productId || 
+                           purchaseData.product_id || 
+                           purchaseData.sku ||
+                           purchaseData.subscription_type ||
+                           '';
+          
+          const transactionId = purchaseData.transactionId ||
+                               purchaseData.transaction_id ||
+                               purchaseData.orderId ||
+                               purchaseData.order_id ||
+                               '';
+          
+          sdk.trackEvent('purchase', {
+            amount: amount,
+            currency: purchaseData.currency || 'USD',
+            product_id: productId,
+            transaction_id: transactionId,
+            ...purchaseData // сохраняем все остальные поля
+          }).catch(() => {});
         }
       }
     };
@@ -899,7 +948,9 @@ export class AffiliateSDK {
   private async checkCapacitorDeepLink(): Promise<void> {
     try {
       // Dynamically import Capacitor App plugin
-      const { App } = await import('@capacitor/app');
+      const { App } = await import('@capacitor/app' as any).catch(() => ({ App: null }));
+      
+      if (!App) return;
       
       // Get launch URL (when app starts from deep link)
       const launchUrl = await App.getLaunchUrl();
@@ -933,7 +984,7 @@ export class AffiliateSDK {
       }
       
       // Listen for app URL open events (when app is already running)
-      App.addListener('appUrlOpen', (data) => {
+      App.addListener('appUrlOpen', (data: any) => {
         this.log('Capacitor App URL opened:', data.url);
         
         const url = new URL(data.url);

@@ -2,6 +2,29 @@
 
 Multi-platform affiliate tracking SDK supporting Web, React Native, iOS, Android, and Flutter.
 
+## 📍 Repository Information
+
+**GitHub Repository:** https://github.com/UniversalSDK/events-sdk
+
+### For Developers - Push Changes:
+```bash
+# Navigate to SDK folder
+cd /Users/alexey/Downloads/affiliateplatform/sdk/web
+
+# Add changes
+git add .
+
+# Commit
+git commit -m "Your commit message"
+
+# Push to correct repository
+git push https://github.com/UniversalSDK/events-sdk.git main
+
+# Or set remote permanently
+git remote set-url origin https://github.com/UniversalSDK/events-sdk.git
+git push origin main
+```
+
 ## 📱 Supported Platforms
 
 - **Web/React** - JavaScript/TypeScript SDK for web applications
