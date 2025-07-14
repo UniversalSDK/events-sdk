@@ -96,6 +96,10 @@ export class AffiliateSDK {
   private timeThresholds = { '30': false, '60': false, '120': false };
   private pageStartTime = 0;
   
+  // Subscription tracking
+  private lastPurchaseTime: number | null = null;
+  private activeSubscription: any = null;
+  
   constructor(config: AffiliateSDKConfig) {
     // Use production URL for API calls
     const baseHost = 'https://affiliate.33rd.pro';
@@ -152,6 +156,19 @@ export class AffiliateSDK {
       
       // Check for Deep Link attribution parameters
       this.checkDeepLinkAttribution();
+      
+      // Восстанавливаем данные о последней покупке
+      try {
+        const savedPurchase = localStorage.getItem(`${this.storagePrefix}_last_purchase`);
+        if (savedPurchase) {
+          const data = JSON.parse(savedPurchase);
+          this.lastPurchaseTime = data.time;
+          this.activeSubscription = data.subscription;
+          this.log('Restored purchase data:', data);
+        }
+      } catch (e) {
+        // Ignore storage errors
+      }
 
       // Load pixel settings
       if (this.config.enablePixels) {
@@ -367,25 +384,50 @@ export class AffiliateSDK {
           const eventData = args[1] || {};
           
           // Универсальная проверка разных форматов полей
-          const isPremium = eventData.isActive || 
-                           eventData.isPremium || 
-                           eventData.is_premium || 
-                           false;
+          let isPremium = eventData.isActive || 
+                         eventData.isPremium || 
+                         eventData.is_premium || 
+                         false;
           
-          const subscriptionType = eventData.subscriptionType || 
-                                  eventData.subscription_type || 
-                                  null;
+          let subscriptionType = eventData.subscriptionType || 
+                                eventData.subscription_type || 
+                                null;
           
-          const expiryDate = eventData.expiryDate || 
-                            eventData.expiry_date || 
-                            null;
+          let expiryDate = eventData.expiryDate || 
+                          eventData.expiry_date || 
+                          null;
+          
+          // Если это проверка при старте и недавно была покупка - используем данные из покупки
+          const checkType = firstArg.includes('STARTED') ? 'started' : 
+                           firstArg.includes('COMPLETED') ? 'completed' : 'status';
+          
+          if (checkType === 'started' && sdk.activeSubscription && sdk.lastPurchaseTime) {
+            // Проверяем, не прошло ли слишком много времени с момента покупки (5 минут)
+            const timeSincePurchase = Date.now() - sdk.lastPurchaseTime;
+            if (timeSincePurchase < 5 * 60 * 1000) {
+              // Используем данные из последней покупки
+              isPremium = true;
+              subscriptionType = sdk.activeSubscription.product_id || subscriptionType;
+              expiryDate = sdk.activeSubscription.expires_date || expiryDate;
+              
+              // Добавляем флаг, что данные скорректированы
+              sdk.trackEvent('subscription_check', {
+                is_premium: isPremium,
+                subscription_type: subscriptionType,
+                expiry_date: expiryDate,
+                check_type: checkType,
+                corrected_from_purchase: true,
+                original_is_premium: eventData.is_premium || false
+              }).catch(() => {});
+              return;
+            }
+          }
           
           sdk.trackEvent('subscription_check', {
             is_premium: isPremium,
             subscription_type: subscriptionType,
             expiry_date: expiryDate,
-            check_type: firstArg.includes('STARTED') ? 'started' : 
-                       firstArg.includes('COMPLETED') ? 'completed' : 'status'
+            check_type: checkType
           }).catch(() => {});
         }
         
@@ -428,6 +470,26 @@ export class AffiliateSDK {
                                purchaseData.orderId ||
                                purchaseData.order_id ||
                                '';
+          
+          // Сохраняем данные о покупке для корректировки будущих проверок
+          sdk.lastPurchaseTime = Date.now();
+          sdk.activeSubscription = {
+            product_id: productId,
+            expires_date: purchaseData.expires_date_ms || purchaseData.expiry_date || 
+                         (purchaseData.details && purchaseData.details.expires_date_ms) || null,
+            purchase_date: Date.now(),
+            ...purchaseData
+          };
+          
+          // Сохраняем в localStorage для персистентности
+          try {
+            localStorage.setItem(`${sdk.storagePrefix}_last_purchase`, JSON.stringify({
+              time: sdk.lastPurchaseTime,
+              subscription: sdk.activeSubscription
+            }));
+          } catch (e) {
+            // Ignore storage errors
+          }
           
           sdk.trackEvent('purchase', {
             amount: amount,
