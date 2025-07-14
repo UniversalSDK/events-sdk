@@ -839,58 +839,85 @@ export class AffiliateSDK {
       // 2. Check Google Play referrer
       const referrer = urlParams.get('referrer');
       let playStoreClickId: string | null = null;
+      let playStoreAffiliateCode: string | null = null;
       
       if (referrer) {
         try {
           // Parse Google Play referrer string
           const referrerParams = new URLSearchParams(referrer);
           playStoreClickId = referrerParams.get('click_id');
+          playStoreAffiliateCode = referrerParams.get('affiliate_code');
         } catch (e) {
           this.logError('Failed to parse Play Store referrer:', e);
         }
       }
       
-      // 3. Check cookies set by redirect.php
+      // 3. Check for universal deep link parameters
+      const universalClickId = urlParams.get('click_id');
+      const universalAffiliateCode = urlParams.get('affiliate_code');
+      
+      // 4. Check cookies set by redirect.php
       const clickIdFromCookie = this.getCookie('affiliate_click_id');
       const affiliateCodeFromCookie = this.getCookie('affiliate_code');
+      const sessionIdFromCookie = this.getCookie('affiliate_session_id');
+      const fingerprintFromCookie = this.getCookie('affiliate_fingerprint');
       
-      // 4. Determine attribution source and click_id
+      // 5. Determine attribution source and click_id (приоритет по надежности)
       let clickId: string | null = null;
       let attributionMethod: string | null = null;
+      let affiliateCode: string | null = null;
       
       if (providerToken) {
         clickId = providerToken;
         attributionMethod = 'app_store_deep_link';
-        this.log('App Store Deep Link detected:', { clickId, campaignToken });
+        affiliateCode = campaignToken;
+        this.log('App Store Deep Link detected:', { clickId, campaignToken, mediaType });
       } else if (playStoreClickId) {
         clickId = playStoreClickId;
         attributionMethod = 'play_store_referrer';
-        this.log('Play Store referrer detected:', { clickId, referrer });
+        affiliateCode = playStoreAffiliateCode;
+        this.log('Play Store referrer detected:', { clickId, affiliateCode, referrer });
+      } else if (universalClickId && universalAffiliateCode) {
+        clickId = universalClickId;
+        attributionMethod = 'universal_deep_link';
+        affiliateCode = universalAffiliateCode;
+        this.log('Universal Deep Link detected:', { clickId, affiliateCode });
       } else if (clickIdFromCookie) {
         clickId = clickIdFromCookie;
         attributionMethod = 'cookie_attribution';
-        this.log('Cookie attribution detected:', { clickId, affiliateCode: affiliateCodeFromCookie });
+        affiliateCode = affiliateCodeFromCookie;
+        this.log('Cookie attribution detected:', { clickId, affiliateCode, sessionId: sessionIdFromCookie });
       }
       
-      // 5. If we found attribution data, track it immediately
+      // 6. If we found attribution data, track it immediately
       if (clickId && attributionMethod) {
         // Store attribution data for later use
         this.storeAttributionData({
           click_id: clickId,
           attribution_method: attributionMethod,
-          campaign_source: campaignToken || affiliateCodeFromCookie || '',
-          timestamp: Date.now()
+          affiliate_code: affiliateCode || '',
+          campaign_source: campaignToken || affiliateCode || '',
+          timestamp: Date.now(),
+          session_id: sessionIdFromCookie || '',
+          fingerprint: fingerprintFromCookie || ''
         });
         
-        // Track attribution event
+        // Track attribution event with enhanced data
         this.trackEvent('app_attribution', {
           click_id: clickId,
           attribution_method: attributionMethod,
-          campaign_source: campaignToken || affiliateCodeFromCookie || '',
+          affiliate_code: affiliateCode || '',
+          campaign_source: campaignToken || affiliateCode || '',
           provider_token: providerToken,
           referrer: referrer,
-          has_deep_link: !!providerToken || !!playStoreClickId,
-          has_cookie: !!clickIdFromCookie
+          has_deep_link: !!providerToken || !!playStoreClickId || !!universalClickId,
+          has_cookie: !!clickIdFromCookie,
+          session_id: sessionIdFromCookie || '',
+          fingerprint: fingerprintFromCookie || '',
+          // Дополнительные данные для различных типов атрибуции
+          app_store_data: providerToken ? { pt: providerToken, ct: campaignToken, mt: mediaType } : null,
+          play_store_data: playStoreClickId ? { click_id: playStoreClickId, affiliate_code: playStoreAffiliateCode } : null,
+          universal_data: universalClickId ? { click_id: universalClickId, affiliate_code: universalAffiliateCode } : null
         }).catch(() => {});
       }
       
